@@ -32,8 +32,8 @@ else:
 
 domain = 'https://archive.org'
 queryPrefix1 = '/details/'
-queryPrefix2 = '?and%5B%5D=date%3A'
-querySuffix = '%2A&sort=-downloads'
+queryPrefix2 = '?and[]=date%3A'
+querySuffix = '*&sort=-downloads'
 
 #todo allow passing in of band
 band = 'GratefulDead'
@@ -41,9 +41,8 @@ parsedDate = datetime.datetime.strptime(date, '%Y-%m-%d')
 if parsedDate > datetime.datetime.strptime('2015-01-01', '%Y-%m-%d'):
     band = 'DeadAndCompany'
 
-queryUrl = domain + queryPrefix1 + band + date + querySuffix
-
-r = requests.get(queryUrl)
+queryUrl = domain + queryPrefix1 + band + queryPrefix2 + date + querySuffix
+print(queryUrl)
 
 soup = BeautifulSoup(requests.get(queryUrl).text, 'html.parser')
 
