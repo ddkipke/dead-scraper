@@ -5,6 +5,7 @@ import re
 import sys
 import os
 import datetime
+from tqdm import tqdm
 
 def getHrefFromTtl(ttl): 
     return ttl.find(href=True)['href']
@@ -57,16 +58,48 @@ collectionUrl = domain + str(hrefs[0])
 
 collectionSoup = BeautifulSoup(requests.get(collectionUrl).text, 'html.parser')
 
-#todo: handle case where there's only direct download, no streaming
-m3uRef = collectionSoup.find(href=re.compile("m3u"))['href']
-m3u = requests.get(domain + m3uRef)
-for mp3Url in m3u.text.split('\n'):
-    if len(mp3Url) is 0:
-        continue
-    fileName = mp3Url.split('/')[-1]
-    outFile = outputPath + fileName 
-    print("Downloading and writing " + outFile)
-    mp3 = requests.get(mp3Url)
-    with io.open(outFile, 'wb') as f:
-        f.write(mp3.content)
+# with io.open('coll.html', 'w') as f:
+#     f.write(collectionSoup.prettify())
 
+#todo: handle case where there's only direct download, no streaming
+#also try direct download first to reduce bandwidth
+
+print("Searching for flac files")
+flacZipRef = collectionSoup.find_all("a", href=re.compile("formats=FLAC"))
+# print(flacZipRef)
+# Download zipped .flac if possible
+if len(flacZipRef) > 0 :
+    flacZipUrl = flacZipRef[0]['href']
+    print("found " + flacZipUrl)
+    outFile = outputPath + flacZipUrl.split('/')[-1]
+    print("Downloading and writing " + outFile)
+
+    flacZip = requests.get(domain + flacZipUrl, stream=True)
+    total_size = int(flacZip.headers.get('content-length', 0))
+    block_size = 1024 * 32
+    #pbar = tqdm(total_size, unit='B', unit_scale=True, unit_divisor=1000000)
+    pbar = tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
+    with io.open(outFile, 'wb') as f:
+        # f.write(flacZip.content)
+        for data in flacZip.iter_content(block_size):
+            f.write(data)
+            pbar.update(len(data))
+    pbar.close()
+    if total_size != 0 and wrote != total_size:
+        print("ERROR, something went wrong")  
+
+# Otherwise get list of mp3s as m3u
+else:
+    m3uRef = collectionSoup.find(href=re.compile("m3u"))['href']
+    m3u = requests.get(domain + m3uRef)
+    for mp3Url in m3u.text.split('\n'):
+        if len(mp3Url) is 0:
+            continue
+        fileName = mp3Url.split('/')[-1]
+        outFile = outputPath + fileName 
+        print("Downloading and writing " + outFile)
+        mp3 = requests.get(mp3Url)
+        with io.open(outFile, 'wb') as f:
+            f.write(mp3.content)
+
+#todo handle google play oddity with temp directory
