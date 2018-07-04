@@ -4,6 +4,7 @@ import requests
 import re
 import sys
 import os
+import datetime
 
 def getHrefFromTtl(ttl): 
     return ttl.find(href=True)['href']
@@ -17,7 +18,8 @@ if len(sys.argv) < 3:
 #todo: validate
 #todo: D&C based on date
 date = sys.argv[1]
-#todo: create dir if doesn't exist
+
+
 outputPath = sys.argv[2] + os.path.sep
 
 if os.path.exists(outputPath):
@@ -29,10 +31,17 @@ else:
 
 
 domain = 'https://archive.org'
-queryPrefix = '/details/GratefulDead?and%5B%5D=date%3A'
+queryPrefix1 = '/details/'
+queryPrefix2 = '?and%5B%5D=date%3A'
 querySuffix = '%2A&sort=-downloads'
 
-queryUrl = domain + queryPrefix + date + querySuffix
+#todo allow passing in of band
+band = 'GratefulDead'
+parsedDate = datetime.datetime.strptime(date, '%Y-%m-%d')
+if parsedDate > datetime.datetime.strptime('2015-01-01', '%Y-%m-%d'):
+    band = 'DeadAndCompany'
+
+queryUrl = domain + queryPrefix1 + band + date + querySuffix
 
 r = requests.get(queryUrl)
 
@@ -43,11 +52,13 @@ itemTtlTags = soup.find_all(class_ = ' item-ttl C C2 ')
 hrefs = map(getHrefFromTtl, itemTtlTags)
 if (len(hrefs) < 1):
     print("No download links found!")
+    exit()
 
 collectionUrl = domain + str(hrefs[0])
 
 collectionSoup = BeautifulSoup(requests.get(collectionUrl).text, 'html.parser')
 
+#todo: handle case where there's only direct download, no streaming
 m3uRef = collectionSoup.find(href=re.compile("m3u"))['href']
 m3u = requests.get(domain + m3uRef)
 for mp3Url in m3u.text.split('\n'):
