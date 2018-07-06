@@ -6,6 +6,7 @@ import sys
 import os
 import datetime
 from tqdm import tqdm
+import zipfile
 
 def getHrefFromTtl(ttl): 
     return ttl.find(href=True)['href']
@@ -85,8 +86,9 @@ if len(flacZipRef) > 0 :
             f.write(data)
             pbar.update(len(data))
     pbar.close()
-    if total_size != 0 and wrote != total_size:
-        print("ERROR, something went wrong")  
+    with zipfile.ZipFile(outFile, 'r') as downloadedZip:
+        downloadedZip.extractall(outputPath)
+    os.remove(outFile)
 
 # Otherwise get list of mp3s as m3u
 else:
